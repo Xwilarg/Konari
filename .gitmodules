@@ -1,0 +1,3 @@
+[submodule "Konari/Discord-Utils"]
+	path = Konari/Discord-Utils
+	url = https://github.com/Xwilarg/Discord-Utils.git
