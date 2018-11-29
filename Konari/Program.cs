@@ -52,7 +52,7 @@ namespace Konari
             SocketUserMessage msg = arg as SocketUserMessage;
             if (msg == null || arg.Author.IsBot) return;
             int pos = 0;
-            if (msg.HasMentionPrefix(client.CurrentUser, ref pos) || msg.HasStringPrefix("c.", ref pos))
+            if (msg.HasMentionPrefix(client.CurrentUser, ref pos) || msg.HasStringPrefix("k.", ref pos))
             {
                 SocketCommandContext context = new SocketCommandContext(client, msg);
                 await commands.ExecuteAsync(context, pos);
@@ -60,7 +60,7 @@ namespace Konari
             using (HttpClient hc = new HttpClient())
             {
                 HttpResponseMessage post = await hc.PostAsync("https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=" + perspectiveApi, new StringContent(
-                        JsonConvert.DeserializeObject("{comment: {text: \"" + msg.Content + "\"},"
+                        JsonConvert.DeserializeObject("{comment: {text: \"" + DiscordUtils.Utils.EscapeString(msg.Content) + "\"},"
                                                     + "languages: [\"en\"],"
                                                     + "requestedAttributes: {TOXICITY:{}} }").ToString(), Encoding.UTF8, "application/json"));
                 dynamic json = JsonConvert.DeserializeObject(await post.Content.ReadAsStringAsync());
