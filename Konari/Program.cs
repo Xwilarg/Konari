@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using Newtonsoft.Json;
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,6 +24,20 @@ namespace Konari
         public DateTime StartTime { private set; get; }
 
         public static Program P { private set; get; }
+
+        private readonly Tuple<string, float>[] categories = new Tuple<string, float>[] {
+            new Tuple<string, float>("TOXICITY", .60f),
+            new Tuple<string, float>("SEVERE_TOXICITY", .40f),
+            new Tuple<string, float>("IDENTITY_ATTACK", .40f),
+            new Tuple<string, float>("INSULT", .40f),
+            new Tuple<string, float>("PROFANITY", .40f),
+            new Tuple<string, float>("THREAT", .40f),
+            new Tuple<string, float>("SEXUALLY_EXPLICIT", .40f),
+            new Tuple<string, float>("INFLAMMATORY", .60f),
+            new Tuple<string, float>("OBSCENE", .40f),
+            new Tuple<string, float>("FLIRTATION", .80f),
+            new Tuple<string, float>("SPAM", .40f)
+        };
 
         private Program()
         {
@@ -57,24 +72,48 @@ namespace Konari
                 SocketCommandContext context = new SocketCommandContext(client, msg);
                 await commands.ExecuteAsync(context, pos);
             }
+            await CheckText(msg, arg);
+        }
+
+        private async Task CheckText(SocketUserMessage msg, SocketMessage arg)
+        {
             using (HttpClient hc = new HttpClient())
             {
                 HttpResponseMessage post = await hc.PostAsync("https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=" + perspectiveApi, new StringContent(
                         JsonConvert.DeserializeObject("{comment: {text: \"" + DiscordUtils.Utils.EscapeString(msg.Content) + "\"},"
                                                     + "languages: [\"en\"],"
-                                                    + "requestedAttributes: {TOXICITY:{}} }").ToString(), Encoding.UTF8, "application/json"));
+                                                    + "requestedAttributes: {" + string.Join(":{}, ", categories.Select(x => x.Item1)) + ":{}} }").ToString(), Encoding.UTF8, "application/json"));
+
                 dynamic json = JsonConvert.DeserializeObject(await post.Content.ReadAsStringAsync());
-                double value = json.attributeScores.TOXICITY.summaryScore.value;
-                if (value > .80)
-                    await msg.AddReactionAsync(new Emoji("🇪"));
-                else if (value > .60)
-                    await msg.AddReactionAsync(new Emoji("🇩"));
-                else if (value > .40)
-                    await msg.AddReactionAsync(new Emoji("🇨"));
-                else if (value > .20)
-                    await msg.AddReactionAsync(new Emoji("🇧"));
-                else
-                    await msg.AddReactionAsync(new Emoji("🇦"));
+                EmbedBuilder embed = new EmbedBuilder()
+                {
+                    Title = "Identification"
+                };
+                foreach (var s in categories)
+                {
+                    double value = json.attributeScores[s.Item1].summaryScore.value;
+                    string text;
+                    if (value > .80 && value > s.Item2)
+                        text = "🇪";
+                    else if (value > .60 && value > s.Item2)
+                        text = "🇩";
+                    else if (value > .40 && value > s.Item2)
+                        text = "🇨";
+                    else
+                        continue;
+                    await msg.DeleteAsync();
+                    await arg.Channel.SendMessageAsync("", false, new EmbedBuilder()
+                    {
+                        Title = s.Item1,
+                        Description = arg.Author.Mention + " Your message was deleted because it trigger the " + s + " flag with a score of " + text,
+                        Color = Color.Red,
+                        Footer = new EmbedFooterBuilder()
+                        {
+                            Text = msg.Content
+                        }
+                    }.Build());
+                    break;
+                }
             }
         }
     }
