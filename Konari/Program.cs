@@ -26,15 +26,14 @@ namespace Konari
         public static Program P { private set; get; }
 
         private readonly Tuple<string, float>[] categories = new Tuple<string, float>[] {
-            new Tuple<string, float>("TOXICITY", .60f),
+            new Tuple<string, float>("TOXICITY", .80f),
             new Tuple<string, float>("SEVERE_TOXICITY", .40f),
             new Tuple<string, float>("IDENTITY_ATTACK", .40f),
             new Tuple<string, float>("INSULT", .40f),
             new Tuple<string, float>("PROFANITY", .40f),
             new Tuple<string, float>("THREAT", .40f),
-            new Tuple<string, float>("SEXUALLY_EXPLICIT", .40f),
             new Tuple<string, float>("INFLAMMATORY", .60f),
-            new Tuple<string, float>("OBSCENE", .40f),
+            new Tuple<string, float>("OBSCENE", .80f),
             new Tuple<string, float>("FLIRTATION", .80f),
             new Tuple<string, float>("SPAM", .40f)
         };
