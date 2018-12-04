@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Google.Cloud.Vision.V1;
 using Newtonsoft.Json;
 using System;
 using System.IO;
@@ -20,6 +21,7 @@ namespace Konari
         private readonly CommandService commands = new CommandService();
 
         private readonly string perspectiveApi;
+        private ImageAnnotatorClient imageClient;
 
         public DateTime StartTime { private set; get; }
 
@@ -27,15 +29,13 @@ namespace Konari
 
         private readonly Tuple<string, float>[] categories = new Tuple<string, float>[] {
             new Tuple<string, float>("TOXICITY", .80f),
-            new Tuple<string, float>("SEVERE_TOXICITY", .40f),
+            new Tuple<string, float>("SEVERE_TOXICITY", .60f),
             new Tuple<string, float>("IDENTITY_ATTACK", .40f),
-            new Tuple<string, float>("INSULT", .40f),
-            new Tuple<string, float>("PROFANITY", .40f),
-            new Tuple<string, float>("THREAT", .40f),
+            new Tuple<string, float>("INSULT", .60f),
+            new Tuple<string, float>("PROFANITY", .80f),
+            new Tuple<string, float>("THREAT", .60f),
             new Tuple<string, float>("INFLAMMATORY", .60f),
-            new Tuple<string, float>("OBSCENE", .80f),
-            new Tuple<string, float>("FLIRTATION", .80f),
-            new Tuple<string, float>("SPAM", .40f)
+            new Tuple<string, float>("OBSCENE", .9f)
         };
 
         private Program()
@@ -48,6 +48,10 @@ namespace Konari
             });
             client.Log += DiscordUtils.Utils.Log;
             commands.Log += DiscordUtils.Utils.LogError;
+
+
+            Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "Keys/imageAPI.json");
+            imageClient = ImageAnnotatorClient.Create();
         }
 
         private async Task MainAsync()
@@ -72,10 +76,45 @@ namespace Konari
                 await commands.ExecuteAsync(context, pos);
             }
             await CheckText(msg, arg);
+            await CheckImage(msg, arg);
+        }
+
+        private async Task CheckImage(SocketUserMessage msg, SocketMessage arg)
+        {
+            if (msg.Attachments.Count > 0)
+            {
+                string url = msg.Attachments.ToArray()[0].Url;
+                if (DiscordUtils.Utils.IsImage(url.Split('.').Last()))
+                {
+                    var image = await Google.Cloud.Vision.V1.Image.FetchFromUriAsync(url);
+                    SafeSearchAnnotation response = await imageClient.DetectSafeSearchAsync(image);
+                    if (response.Adult > Likelihood.Possible || response.Medical > Likelihood.Possible
+                        || response.Racy > Likelihood.Possible || response.Violence > Likelihood.Possible
+                        || response.Spoof > Likelihood.Possible)
+                    {
+                        await msg.DeleteAsync();
+                        EmbedBuilder embed = new EmbedBuilder()
+                        {
+                            Description = arg.Author.Mention + " Your image was deleted"
+                        };
+                        int score = (int)response.Adult + (int)response.Medical + (int)response.Racy + (int)response.Spoof + (int)response.Violence - 5;
+                        embed.AddField("Adult", response.Adult);
+                        embed.AddField("Medical", response.Medical);
+                        embed.AddField("Racy", response.Racy);
+                        embed.AddField("Violence", response.Violence);
+                        embed.AddField("Spoof", response.Spoof);
+                        float red = score / 20f;
+                        embed.Color = new Color(red, 1f - red, 0f);
+                        await msg.Channel.SendMessageAsync("", false, embed.Build());
+                    }
+                }
+            }
         }
 
         private async Task CheckText(SocketUserMessage msg, SocketMessage arg)
         {
+            if (msg.Content.Length == 0)
+                return;
             using (HttpClient hc = new HttpClient())
             {
                 HttpResponseMessage post = await hc.PostAsync("https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=" + perspectiveApi, new StringContent(
@@ -92,19 +131,13 @@ namespace Konari
                 {
                     double value = json.attributeScores[s.Item1].summaryScore.value;
                     string text;
-                    if (value > .80 && value > s.Item2)
-                        text = "🇪";
-                    else if (value > .60 && value > s.Item2)
-                        text = "🇩";
-                    else if (value > .40 && value > s.Item2)
-                        text = "🇨";
-                    else
+                    if (value < s.Item2)
                         continue;
                     await msg.DeleteAsync();
                     await arg.Channel.SendMessageAsync("", false, new EmbedBuilder()
                     {
                         Title = s.Item1,
-                        Description = arg.Author.Mention + " Your message was deleted because it trigger the " + s + " flag with a score of " + text,
+                        Description = arg.Author.Mention + " Your message was deleted because it trigger the " + s + " flag with a score of " + value,
                         Color = Color.Red,
                         Footer = new EmbedFooterBuilder()
                         {
