@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Google.Cloud.Translation.V2;
 using Google.Cloud.Vision.V1;
 using Newtonsoft.Json;
 using System;
@@ -22,6 +23,7 @@ namespace Konari
 
         private readonly string perspectiveApi;
         private ImageAnnotatorClient imageClient;
+        private TranslationClient translationClient;
 
         public DateTime StartTime { private set; get; }
 
@@ -52,6 +54,8 @@ namespace Konari
 
             Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "Keys/imageAPI.json");
             imageClient = ImageAnnotatorClient.Create();
+
+            translationClient = TranslationClient.Create();
         }
 
         private async Task MainAsync()
@@ -115,10 +119,14 @@ namespace Konari
         {
             if (msg.Content.Length == 0)
                 return;
+            var detection = await translationClient.DetectLanguageAsync(msg.Content);
+            string finalMsg = msg.Content;
+            if (detection.Language != "en")
+                finalMsg = (await translationClient.TranslateTextAsync(msg.Content, "en")).TranslatedText;
             using (HttpClient hc = new HttpClient())
             {
                 HttpResponseMessage post = await hc.PostAsync("https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=" + perspectiveApi, new StringContent(
-                        JsonConvert.DeserializeObject("{comment: {text: \"" + DiscordUtils.Utils.EscapeString(msg.Content) + "\"},"
+                        JsonConvert.DeserializeObject("{comment: {text: \"" + DiscordUtils.Utils.EscapeString(finalMsg) + "\"},"
                                                     + "languages: [\"en\"],"
                                                     + "requestedAttributes: {" + string.Join(":{}, ", categories.Select(x => x.Item1)) + ":{}} }").ToString(), Encoding.UTF8, "application/json"));
 
@@ -130,7 +138,6 @@ namespace Konari
                 foreach (var s in categories)
                 {
                     double value = json.attributeScores[s.Item1].summaryScore.value;
-                    string text;
                     if (value < s.Item2)
                         continue;
                     await msg.DeleteAsync();
@@ -141,7 +148,7 @@ namespace Konari
                         Color = Color.Red,
                         Footer = new EmbedFooterBuilder()
                         {
-                            Text = msg.Content
+                            Text = finalMsg
                         }
                     }.Build());
                     break;
