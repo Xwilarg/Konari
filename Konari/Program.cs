@@ -148,7 +148,7 @@ namespace Konari
                         Color = Color.Red,
                         Footer = new EmbedFooterBuilder()
                         {
-                            Text = finalMsg
+                            Text = msg.Content
                         }
                     }.Build());
                     break;
