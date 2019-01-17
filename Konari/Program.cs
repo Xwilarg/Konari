@@ -1,10 +1,12 @@
 ﻿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using DiscordUtils;
 using Google.Cloud.Translation.V2;
 using Google.Cloud.Vision.V1;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -29,6 +31,9 @@ namespace Konari
 
         public static Program P { private set; get; }
 
+        private readonly string requestUrl;
+        private readonly string requestArg;
+
         private readonly Tuple<string, float>[] categories = new Tuple<string, float>[] {
             new Tuple<string, float>("TOXICITY", .80f),
             new Tuple<string, float>("SEVERE_TOXICITY", .60f),
@@ -48,9 +53,11 @@ namespace Konari
             {
                 LogLevel = LogSeverity.Verbose,
             });
-            client.Log += DiscordUtils.Utils.Log;
-            commands.Log += DiscordUtils.Utils.LogError;
-
+            client.Log += Utils.Log;
+            commands.Log += Utils.LogError;
+            string[] request = File.ReadAllLines("Keys/url.txt");
+            requestUrl = request[0];
+            requestArg = request[1];
 
             Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "Keys/imageAPI.json");
             imageClient = ImageAnnotatorClient.Create();
@@ -79,8 +86,33 @@ namespace Konari
                 SocketCommandContext context = new SocketCommandContext(client, msg);
                 await commands.ExecuteAsync(context, pos);
             }
-            await CheckText(msg, arg);
-            await CheckImage(msg, arg);
+#pragma warning disable 4014
+            Task.Run(async () =>
+            {
+                var flags = await CheckText(msg, arg);
+                await CheckImage(msg, arg);
+                if (flags != null)
+                {
+                    string val = flags == null ? "SAFE" : string.Join(",", flags);
+                    try
+                    {
+                        using (HttpClient httpClient = new HttpClient())
+                        {
+                            var values = new Dictionary<string, string> {
+                           { requestArg, val }
+                        };
+                            HttpRequestMessage httpMsg = new HttpRequestMessage(HttpMethod.Post, requestUrl + val);
+                            httpMsg.Content = new FormUrlEncodedContent(values);
+                            await httpClient.SendAsync(httpMsg);
+                        }
+                    }
+                    catch (HttpRequestException http)
+                    {
+                        await Utils.Log(new LogMessage(LogSeverity.Error, http.Source, http.Message, http));
+                    }
+                }
+            });
+#pragma warning restore 4014
         }
 
         private async Task CheckImage(SocketUserMessage msg, SocketMessage arg)
@@ -88,7 +120,7 @@ namespace Konari
             if (msg.Attachments.Count > 0)
             {
                 string url = msg.Attachments.ToArray()[0].Url;
-                if (DiscordUtils.Utils.IsImage(url.Split('.').Last()))
+                if (Utils.IsImage(url.Split('.').Last()))
                 {
                     var image = await Google.Cloud.Vision.V1.Image.FetchFromUriAsync(url);
                     SafeSearchAnnotation response = await imageClient.DetectSafeSearchAsync(image);
@@ -97,16 +129,22 @@ namespace Konari
                         || response.Spoof > Likelihood.Possible)
                     {
                         await msg.DeleteAsync();
+                        List<string> flags = new List<string>();
+                        if (response.Adult > Likelihood.Possible)
+                            flags.Add("Adult(" + response.Adult.ToString() + ")");
+                        if (response.Medical > Likelihood.Possible)
+                            flags.Add("Medical(" + response.Medical.ToString() + ")");
+                        if (response.Racy > Likelihood.Possible)
+                            flags.Add("Racy(" + response.Racy.ToString() + ")");
+                        if (response.Violence > Likelihood.Possible)
+                            flags.Add("Violence(" + response.Violence.ToString() + ")");
+                        if (response.Spoof > Likelihood.Possible)
+                            flags.Add("Spoof(" + response.Spoof.ToString() + ")");
                         EmbedBuilder embed = new EmbedBuilder()
                         {
-                            Description = arg.Author.Mention + " Your image was deleted"
+                            Description = arg.Author.Mention + " Your image was deleted because it trigger the following flags: " + string.Join(", ", flags)
                         };
                         int score = (int)response.Adult + (int)response.Medical + (int)response.Racy + (int)response.Spoof + (int)response.Violence - 5;
-                        embed.AddField("Adult", response.Adult);
-                        embed.AddField("Medical", response.Medical);
-                        embed.AddField("Racy", response.Racy);
-                        embed.AddField("Violence", response.Violence);
-                        embed.AddField("Spoof", response.Spoof);
                         float red = score / 20f;
                         embed.Color = new Color(red, 1f - red, 0f);
                         await msg.Channel.SendMessageAsync("", false, embed.Build());
@@ -115,10 +153,10 @@ namespace Konari
             }
         }
 
-        private async Task CheckText(SocketUserMessage msg, SocketMessage arg)
+        private async Task<List<string>> CheckText(SocketUserMessage msg, SocketMessage arg)
         {
             if (msg.Content.Length == 0)
-                return;
+                return (null);
             var detection = await translationClient.DetectLanguageAsync(msg.Content);
             string finalMsg = msg.Content;
             if (detection.Language != "en")
@@ -135,24 +173,28 @@ namespace Konari
                 {
                     Title = "Identification"
                 };
+                List<string> flags = new List<string>();
                 foreach (var s in categories)
                 {
                     double value = json.attributeScores[s.Item1].summaryScore.value;
-                    if (value < s.Item2)
-                        continue;
+                    if (value >= s.Item2)
+                        flags.Add(s.Item1 + "(" + value.ToString("0.00") + ")");
+                }
+                if (flags.Count > 0)
+                {
                     await msg.DeleteAsync();
                     await arg.Channel.SendMessageAsync("", false, new EmbedBuilder()
                     {
-                        Title = s.Item1,
-                        Description = arg.Author.Mention + " Your message was deleted because it trigger the " + s + " flag with a score of " + value,
+                        Title = "Message deleted",
+                        Description = arg.Author.Mention + " Your message was deleted because it trigger the following flags: " + string.Join(", ", flags),
                         Color = Color.Red,
                         Footer = new EmbedFooterBuilder()
                         {
                             Text = msg.Content
                         }
                     }.Build());
-                    break;
                 }
+                return (flags.Select(x => x.Split('(')[0]).ToList());
             }
         }
     }
