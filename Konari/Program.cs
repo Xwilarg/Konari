@@ -93,7 +93,7 @@ namespace Konari
                 await CheckImage(msg, arg);
                 if (flags != null)
                 {
-                    string val = flags == null ? "SAFE" : string.Join(",", flags);
+                    string val = flags.Count == 0 ? "SAFE" : string.Join(",", flags);
                     try
                     {
                         using (HttpClient httpClient = new HttpClient())
