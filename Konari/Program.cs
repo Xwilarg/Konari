@@ -31,8 +31,8 @@ namespace Konari
 
         public static Program P { private set; get; }
 
-        private readonly string requestUrl;
-        private readonly string requestArg;
+        private readonly string requestUrlText;
+        private readonly string requestUrlImage;
 
         private readonly Tuple<string, float>[] categories = new Tuple<string, float>[] {
             new Tuple<string, float>("TOXICITY", .80f),
@@ -56,8 +56,8 @@ namespace Konari
             client.Log += Utils.Log;
             commands.Log += Utils.LogError;
             string[] request = File.ReadAllLines("Keys/url.txt");
-            requestUrl = request[0];
-            requestArg = request[1];
+            requestUrlText = request[0];
+            requestUrlImage = request[1];
 
             Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "Keys/imageAPI.json");
             imageClient = ImageAnnotatorClient.Create();
@@ -76,6 +76,26 @@ namespace Konari
             await Task.Delay(-1);
         }
 
+        private async Task SendToServerAsync(List<string> flags, string endpoint)
+        {
+            if (flags != null)
+            {
+                string val = flags.Count == 0 ? "SAFE" : string.Join(",", flags);
+                try
+                {
+                    using (HttpClient httpClient = new HttpClient())
+                    {
+                        HttpRequestMessage httpMsg = new HttpRequestMessage(HttpMethod.Post, endpoint + val);
+                        await httpClient.SendAsync(httpMsg);
+                    }
+                }
+                catch (HttpRequestException http)
+                {
+                    await Utils.Log(new LogMessage(LogSeverity.Error, http.Source, http.Message, http));
+                }
+            }
+        }
+
         private async Task HandleCommandAsync(SocketMessage arg)
         {
             SocketUserMessage msg = arg as SocketUserMessage;
@@ -89,33 +109,15 @@ namespace Konari
 #pragma warning disable 4014
             Task.Run(async () =>
             {
-                var flags = await CheckText(msg, arg);
-                await CheckImage(msg, arg);
-                if (flags != null)
-                {
-                    string val = flags.Count == 0 ? "SAFE" : string.Join(",", flags);
-                    try
-                    {
-                        using (HttpClient httpClient = new HttpClient())
-                        {
-                            var values = new Dictionary<string, string> {
-                           { requestArg, val }
-                        };
-                            HttpRequestMessage httpMsg = new HttpRequestMessage(HttpMethod.Post, requestUrl + val);
-                            httpMsg.Content = new FormUrlEncodedContent(values);
-                            await httpClient.SendAsync(httpMsg);
-                        }
-                    }
-                    catch (HttpRequestException http)
-                    {
-                        await Utils.Log(new LogMessage(LogSeverity.Error, http.Source, http.Message, http));
-                    }
-                }
+                List<string> flagsText = await CheckText(msg, arg);
+                List<string> flagsImage = await CheckImage(msg, arg);
+                await SendToServerAsync(flagsText, requestUrlText);
+                await SendToServerAsync(flagsImage, requestUrlImage);
             });
 #pragma warning restore 4014
         }
 
-        private async Task CheckImage(SocketUserMessage msg, SocketMessage arg)
+        private async Task<List<string>> CheckImage(SocketUserMessage msg, SocketMessage arg)
         {
             if (msg.Attachments.Count > 0)
             {
@@ -148,9 +150,11 @@ namespace Konari
                         float red = score / 20f;
                         embed.Color = new Color(red, 1f - red, 0f);
                         await msg.Channel.SendMessageAsync("", false, embed.Build());
+                        return (flags.Select(x => x.Split('(')[0]).ToList());
                     }
                 }
             }
+            return (null);
         }
 
         private async Task<List<string>> CheckText(SocketUserMessage msg, SocketMessage arg)
