@@ -157,14 +157,20 @@ namespace Konari
             return (null);
         }
 
+        private readonly string[] allowedLanguage = new string[]
+        {
+            "en", "fr", "es", "de"
+        }; // Languages supported by Perspective API. Others message are translated to english
         private async Task<List<string>> CheckText(SocketUserMessage msg, SocketMessage arg)
         {
             if (msg.Content.Length == 0)
                 return (null);
             var detection = await translationClient.DetectLanguageAsync(msg.Content);
             string finalMsg = msg.Content;
-            if (detection.Language != "en")
+            if (!allowedLanguage.Contains(detection.Language))
+            {
                 finalMsg = (await translationClient.TranslateTextAsync(msg.Content, "en")).TranslatedText;
+            }
             using (HttpClient hc = new HttpClient())
             {
                 HttpResponseMessage post = await hc.PostAsync("https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=" + perspectiveApi, new StringContent(
