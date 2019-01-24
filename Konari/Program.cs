@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Konari
@@ -76,7 +77,7 @@ namespace Konari
             await Task.Delay(-1);
         }
 
-        private async Task SendToServerAsync(List<string> flags, string endpoint)
+        private async Task<bool> SendToServerAsync(List<string> flags, string endpoint)
         {
             if (flags != null)
             {
@@ -93,7 +94,9 @@ namespace Konari
                 {
                     await Utils.Log(new LogMessage(LogSeverity.Error, http.Source, http.Message, http));
                 }
+                return (val != "SAFE");
             }
+            return (false);
         }
 
         private async Task HandleCommandAsync(SocketMessage arg)
@@ -109,10 +112,21 @@ namespace Konari
 #pragma warning disable 4014
             Task.Run(async () =>
             {
-                List<string> flagsText = await CheckText(msg, arg);
-                List<string> flagsImage = await CheckImage(msg, arg);
-                await SendToServerAsync(flagsText, requestUrlText);
-                await SendToServerAsync(flagsImage, requestUrlImage);
+                await SendToServerAsync(await CheckText(msg, arg), requestUrlText);
+
+            });
+            Task.Run(async () =>
+            {
+                await SendToServerAsync(await CheckImage(msg, arg), requestUrlImage);
+            });
+            Task.Run(async () =>
+            {
+                foreach (Match m in Regex.Matches(msg.Content, "https?:\\/\\/[^ ]+"))
+                {
+                    if (Utils.IsLinkValid(m.Value))
+                        if (await SendToServerAsync(await CheckImageUrl(m.Value, msg, arg), requestUrlImage))
+                            break;
+                }
             });
 #pragma warning restore 4014
         }
@@ -120,38 +134,41 @@ namespace Konari
         private async Task<List<string>> CheckImage(SocketUserMessage msg, SocketMessage arg)
         {
             if (msg.Attachments.Count > 0)
+                return (await CheckImageUrl(msg.Attachments.ToArray()[0].Url, msg, arg));
+            return (null);
+        }
+
+        private async Task<List<string>> CheckImageUrl(string url, SocketUserMessage msg, SocketMessage arg)
+        {
+            if (Utils.IsImage(url.Split('.').Last()))
             {
-                string url = msg.Attachments.ToArray()[0].Url;
-                if (Utils.IsImage(url.Split('.').Last()))
+                var image = await Google.Cloud.Vision.V1.Image.FetchFromUriAsync(url);
+                SafeSearchAnnotation response = await imageClient.DetectSafeSearchAsync(image);
+                if (response.Adult > Likelihood.Possible || response.Medical > Likelihood.Possible
+                    || response.Racy > Likelihood.Possible || response.Violence > Likelihood.Possible
+                    || response.Spoof > Likelihood.Possible)
                 {
-                    var image = await Google.Cloud.Vision.V1.Image.FetchFromUriAsync(url);
-                    SafeSearchAnnotation response = await imageClient.DetectSafeSearchAsync(image);
-                    if (response.Adult > Likelihood.Possible || response.Medical > Likelihood.Possible
-                        || response.Racy > Likelihood.Possible || response.Violence > Likelihood.Possible
-                        || response.Spoof > Likelihood.Possible)
+                    await msg.DeleteAsync();
+                    List<string> flags = new List<string>();
+                    if (response.Adult > Likelihood.Possible)
+                        flags.Add("Adult(" + response.Adult.ToString() + ")");
+                    if (response.Medical > Likelihood.Possible)
+                        flags.Add("Medical(" + response.Medical.ToString() + ")");
+                    if (response.Racy > Likelihood.Possible)
+                        flags.Add("Racy(" + response.Racy.ToString() + ")");
+                    if (response.Violence > Likelihood.Possible)
+                        flags.Add("Violence(" + response.Violence.ToString() + ")");
+                    if (response.Spoof > Likelihood.Possible)
+                        flags.Add("Spoof(" + response.Spoof.ToString() + ")");
+                    EmbedBuilder embed = new EmbedBuilder()
                     {
-                        await msg.DeleteAsync();
-                        List<string> flags = new List<string>();
-                        if (response.Adult > Likelihood.Possible)
-                            flags.Add("Adult(" + response.Adult.ToString() + ")");
-                        if (response.Medical > Likelihood.Possible)
-                            flags.Add("Medical(" + response.Medical.ToString() + ")");
-                        if (response.Racy > Likelihood.Possible)
-                            flags.Add("Racy(" + response.Racy.ToString() + ")");
-                        if (response.Violence > Likelihood.Possible)
-                            flags.Add("Violence(" + response.Violence.ToString() + ")");
-                        if (response.Spoof > Likelihood.Possible)
-                            flags.Add("Spoof(" + response.Spoof.ToString() + ")");
-                        EmbedBuilder embed = new EmbedBuilder()
-                        {
-                            Description = arg.Author.Mention + " Your image was deleted because it trigger the following flags: " + string.Join(", ", flags)
-                        };
-                        int score = (int)response.Adult + (int)response.Medical + (int)response.Racy + (int)response.Spoof + (int)response.Violence - 5;
-                        float red = score / 20f;
-                        embed.Color = new Color(red, 1f - red, 0f);
-                        await msg.Channel.SendMessageAsync("", false, embed.Build());
-                        return (flags.Select(x => x.Split('(')[0]).ToList());
-                    }
+                        Description = arg.Author.Mention + " Your image was deleted because it trigger the following flags: " + string.Join(", ", flags)
+                    };
+                    int score = (int)response.Adult + (int)response.Medical + (int)response.Racy + (int)response.Spoof + (int)response.Violence - 5;
+                    float red = score / 20f;
+                    embed.Color = new Color(red, 1f - red, 0f);
+                    await msg.Channel.SendMessageAsync("", false, embed.Build());
+                    return (flags.Select(x => x.Split('(')[0]).ToList());
                 }
             }
             return (null);
