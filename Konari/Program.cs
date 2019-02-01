@@ -219,7 +219,7 @@ namespace Konari
                 {
                     await msg.DeleteAsync();
                     await arg.Channel.SendMessageAsync(arg.Author.Mention + " Your message was deleted because it trigger the following flags: " + string.Join(", ", flags) +Environment.NewLine + Environment.NewLine +
-                        "Original message: ||" + msg.Content + "||");
+                        "Original message: ||" + msg.Content.Replace("|", "\\|") + "||");
                 }
                 return (flags.Select(x => x.Split('(')[0]).ToList());
             }
