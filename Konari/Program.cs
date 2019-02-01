@@ -29,6 +29,7 @@ namespace Konari
         private TranslationClient translationClient;
 
         public DateTime StartTime { private set; get; }
+        private Random rand;
 
         public static Program P { private set; get; }
 
@@ -59,6 +60,7 @@ namespace Konari
             string[] request = File.ReadAllLines("Keys/url.txt");
             requestUrlText = request[0];
             requestUrlImage = request[1];
+            rand = new Random();
 
             Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "Keys/imageAPI.json");
             imageClient = ImageAnnotatorClient.Create();
@@ -138,6 +140,14 @@ namespace Konari
             return (null);
         }
 
+        private string GenerateFileName()
+        {
+            string finalName = "";
+            for (int i = 0; i < 30; i++)
+                finalName += rand.Next('0', '9' + 1);
+            return (finalName);
+        }
+
         private async Task<List<string>> CheckImageUrl(string url, SocketUserMessage msg, SocketMessage arg)
         {
             if (Utils.IsImage(url.Split('.').Last()))
@@ -148,7 +158,6 @@ namespace Konari
                     || response.Racy > Likelihood.Possible || response.Violence > Likelihood.Possible
                     || response.Spoof > Likelihood.Possible)
                 {
-                    await msg.DeleteAsync();
                     List<string> flags = new List<string>();
                     if (response.Adult > Likelihood.Possible)
                         flags.Add("Adult(" + response.Adult.ToString() + ")");
@@ -160,14 +169,13 @@ namespace Konari
                         flags.Add("Violence(" + response.Violence.ToString() + ")");
                     if (response.Spoof > Likelihood.Possible)
                         flags.Add("Spoof(" + response.Spoof.ToString() + ")");
-                    EmbedBuilder embed = new EmbedBuilder()
-                    {
-                        Description = arg.Author.Mention + " Your image was deleted because it trigger the following flags: " + string.Join(", ", flags)
-                    };
-                    int score = (int)response.Adult + (int)response.Medical + (int)response.Racy + (int)response.Spoof + (int)response.Violence - 5;
-                    float red = score / 20f;
-                    embed.Color = new Color(red, 1f - red, 0f);
-                    await msg.Channel.SendMessageAsync("", false, embed.Build());
+                    string fileName = "SPOILER_" + GenerateFileName() + "." + url.Split('.').Last();
+                    using (HttpClient hc = new HttpClient())
+                        File.WriteAllBytes(fileName, await hc.GetByteArrayAsync(url));
+                    await msg.Channel.SendMessageAsync(arg.Author.Mention + " Your image was deleted because it trigger the following flags: " + string.Join(", ", flags));
+                    await msg.Channel.SendFileAsync(fileName);
+                    await msg.DeleteAsync();
+                    File.Delete(fileName);
                     return (flags.Select(x => x.Split('(')[0]).ToList());
                 }
             }
@@ -210,16 +218,8 @@ namespace Konari
                 if (flags.Count > 0)
                 {
                     await msg.DeleteAsync();
-                    await arg.Channel.SendMessageAsync("", false, new EmbedBuilder()
-                    {
-                        Title = "Message deleted",
-                        Description = arg.Author.Mention + " Your message was deleted because it trigger the following flags: " + string.Join(", ", flags),
-                        Color = Color.Red,
-                        Footer = new EmbedFooterBuilder()
-                        {
-                            Text = msg.Content
-                        }
-                    }.Build());
+                    await arg.Channel.SendMessageAsync(arg.Author.Mention + " Your message was deleted because it trigger the following flags: " + string.Join(", ", flags) +Environment.NewLine + Environment.NewLine +
+                        "Original message: ||" + msg.Content + "||");
                 }
                 return (flags.Select(x => x.Split('(')[0]).ToList());
             }
