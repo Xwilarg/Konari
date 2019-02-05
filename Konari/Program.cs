@@ -35,6 +35,7 @@ namespace Konari
 
         private readonly string requestUrlText;
         private readonly string requestUrlImage;
+        private readonly string requestToken;
 
         private readonly Tuple<string, float>[] categories = new Tuple<string, float>[] {
             new Tuple<string, float>("TOXICITY", .80f),
@@ -60,6 +61,7 @@ namespace Konari
             string[] request = File.ReadAllLines("Keys/url.txt");
             requestUrlText = request[0];
             requestUrlImage = request[1];
+            requestToken = request[2];
             rand = new Random();
 
             Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "Keys/imageAPI.json");
@@ -79,7 +81,7 @@ namespace Konari
             await Task.Delay(-1);
         }
 
-        private async Task<bool> SendToServerAsync(List<string> flags, string endpoint)
+        private async Task<bool> SendToServerAsync(List<string> flags, string endpoint, string userId)
         {
             if (flags != null)
             {
@@ -88,7 +90,7 @@ namespace Konari
                 {
                     using (HttpClient httpClient = new HttpClient())
                     {
-                        HttpRequestMessage httpMsg = new HttpRequestMessage(HttpMethod.Post, endpoint + val);
+                        HttpRequestMessage httpMsg = new HttpRequestMessage(HttpMethod.Post, endpoint + "?token=" + requestToken + "&flags=" + val + "&userId=" + userId);
                         await httpClient.SendAsync(httpMsg);
                     }
                 }
@@ -114,19 +116,19 @@ namespace Konari
 #pragma warning disable 4014
             Task.Run(async () =>
             {
-                await SendToServerAsync(await CheckText(msg, arg), requestUrlText);
+                await SendToServerAsync(await CheckText(msg, arg), requestUrlText, arg.Author.Id.ToString());
 
             });
             Task.Run(async () =>
             {
-                await SendToServerAsync(await CheckImage(msg, arg), requestUrlImage);
+                await SendToServerAsync(await CheckImage(msg, arg), requestUrlImage, arg.Author.Id.ToString());
             });
             Task.Run(async () =>
             {
                 foreach (Match m in Regex.Matches(msg.Content, "https?:\\/\\/[^ ]+"))
                 {
                     if (Utils.IsLinkValid(m.Value))
-                        if (await SendToServerAsync(await CheckImageUrl(m.Value, msg, arg), requestUrlImage))
+                        if (await SendToServerAsync(await CheckImageUrl(m.Value, msg, arg), requestUrlImage, arg.Author.Id.ToString()))
                             break;
                 }
             });
