@@ -90,7 +90,7 @@ namespace Konari
                 {
                     using (HttpClient httpClient = new HttpClient())
                     {
-                        HttpRequestMessage httpMsg = new HttpRequestMessage(HttpMethod.Post, endpoint + "?token=" + requestToken + "&flags=" + val + "&userId=" + userId);
+                        HttpRequestMessage httpMsg = new HttpRequestMessage(HttpMethod.Post, endpoint + "&token=" + requestToken + "&flags=" + val + "&userId=" + userId);
                         await httpClient.SendAsync(httpMsg);
                     }
                 }
