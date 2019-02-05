@@ -155,12 +155,12 @@ namespace Konari
             if (Utils.IsImage(url.Split('.').Last()))
             {
                 var image = await Google.Cloud.Vision.V1.Image.FetchFromUriAsync(url);
+                List<string> flags = new List<string>();
                 SafeSearchAnnotation response = await imageClient.DetectSafeSearchAsync(image);
                 if (response.Adult > Likelihood.Possible || response.Medical > Likelihood.Possible
                     || response.Racy > Likelihood.Possible || response.Violence > Likelihood.Possible
                     || response.Spoof > Likelihood.Possible)
                 {
-                    List<string> flags = new List<string>();
                     if (response.Adult > Likelihood.Possible)
                         flags.Add("Adult(" + response.Adult.ToString() + ")");
                     if (response.Medical > Likelihood.Possible)
@@ -180,6 +180,8 @@ namespace Konari
                     File.Delete(fileName);
                     return (flags.Select(x => x.Split('(')[0]).ToList());
                 }
+                flags.Add("SAFE");
+                return (flags);
             }
             return (null);
         }
