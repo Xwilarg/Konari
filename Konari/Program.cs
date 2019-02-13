@@ -37,6 +37,8 @@ namespace Konari
         private readonly string requestUrlImage;
         private readonly string requestToken;
 
+        private Db db;
+
         private readonly Tuple<string, float>[] categories = new Tuple<string, float>[] {
             new Tuple<string, float>("TOXICITY", .80f),
             new Tuple<string, float>("SEVERE_TOXICITY", .60f),
@@ -63,6 +65,7 @@ namespace Konari
             requestUrlImage = request[1];
             requestToken = request[2];
             rand = new Random();
+            db = new Db();
 
             Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "Keys/imageAPI.json");
             imageClient = ImageAnnotatorClient.Create();
@@ -72,13 +75,22 @@ namespace Konari
 
         private async Task MainAsync()
         {
+            await db.InitAsync();
+
             client.MessageReceived += HandleCommandAsync;
+            client.GuildAvailable += GuildJoin;
+            client.JoinedGuild += GuildJoin;
 
             await client.LoginAsync(TokenType.Bot, File.ReadAllText("Keys/token.txt"));
             StartTime = DateTime.Now;
             await client.StartAsync();
 
             await Task.Delay(-1);
+        }
+
+        private async Task GuildJoin(SocketGuild arg)
+        {
+            await db.InitGuild(arg.Id);
         }
 
         private async Task<bool> SendToServerAsync(List<string> flags, string endpoint, string userId)
