@@ -30,7 +30,7 @@ namespace Konari
         {
             if (Context.Guild.OwnerId != Context.User.Id)
             {
-                await ReplyAsync("Only the owner can do this command.");
+                await ReplyAsync("Only " + (await Context.Guild.GetOwnerAsync()).ToString() + " can do this command.");
                 return;
             }
             string elem = args[0];
@@ -96,7 +96,7 @@ namespace Konari
         {
             if (Context.Guild.OwnerId != Context.User.Id)
             {
-                await ReplyAsync("Only the owner can do this command.");
+                await ReplyAsync("Only " + (await Context.Guild.GetOwnerAsync()).ToString() + " can do this command.");
                 return;
             }
             string elem = string.Join(" ", args);
