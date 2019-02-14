@@ -63,7 +63,7 @@ namespace Konari
             if (chan == null)
                 replyStr += "with delete action.";
             else
-                replyStr += "with report in " + chan.ToString();
+                replyStr += "with report in " + chan.Mention;
             if (elem == "text")
             {
                 await Program.P.db.SetText(Context.Guild.Id, str);

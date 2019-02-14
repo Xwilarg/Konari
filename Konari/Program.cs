@@ -85,6 +85,13 @@ namespace Konari
             await db.InitGuild(arg.Id);
         }
 
+        private async Task<ITextChannel> GetTextChannel(string str, IGuild guild)
+        {
+            if (str == "O" || str == "X")
+                return (null);
+            return (await guild.GetTextChannelAsync(ulong.Parse(str)));
+        }
+
         private async Task HandleCommandAsync(SocketMessage arg)
         {
             SocketUserMessage msg = arg as SocketUserMessage;
@@ -104,11 +111,13 @@ namespace Konari
             string textVal = db.GetText(guildId);
             string imageVal = db.GetImage(guildId);
             string serverVal = db.GetServer(guildId);
+            ITextChannel textReport = await GetTextChannel(textVal, textChan.Guild);
+            ITextChannel imageReport = await GetTextChannel(imageVal, textChan.Guild);
             if (textVal != "O")
             {
                 Task.Run(async () =>
                 {
-                    var tmp = await Analyze.CheckText(msg, arg);
+                    var tmp = await Analyze.CheckText(msg, arg, textReport);
                     if (serverVal != "O")
                         await Analyze.SendToServerAsync(tmp, requestUrlText, arg.Author.Id.ToString());
                 });
@@ -117,7 +126,7 @@ namespace Konari
             {
                 Task.Run(async () =>
                 {
-                    var tmp = await Analyze.CheckImage(msg, arg);
+                    var tmp = await Analyze.CheckImage(msg, arg, imageReport);
                     if (serverVal != "O")
                         await Analyze.SendToServerAsync(tmp, requestUrlImage, arg.Author.Id.ToString());
                 });
@@ -127,7 +136,7 @@ namespace Konari
                     {
                         if (Utils.IsLinkValid(m.Value))
                         {
-                            var tmp = await Analyze.CheckImageUrl(m.Value, msg, arg);
+                            var tmp = await Analyze.CheckImageUrl(m.Value, msg, arg, imageReport);
                             if (serverVal != "O" && await Analyze.SendToServerAsync(tmp, requestUrlImage, arg.Author.Id.ToString()))
                                 break;
                         }

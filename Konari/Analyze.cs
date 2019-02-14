@@ -37,10 +37,10 @@ namespace Konari
             return (false);
         }
 
-        public static async Task<List<string>> CheckImage(SocketUserMessage msg, SocketMessage arg)
+        public static async Task<List<string>> CheckImage(SocketUserMessage msg, SocketMessage arg, ITextChannel reportChan)
         {
             if (msg.Attachments.Count > 0)
-                return (await CheckImageUrl(msg.Attachments.ToArray()[0].Url, msg, arg));
+                return (await CheckImageUrl(msg.Attachments.ToArray()[0].Url, msg, arg, reportChan));
             return (null);
         }
 
@@ -53,7 +53,7 @@ namespace Konari
             return (finalName);
         }
 
-        public static async Task<List<string>> CheckImageUrl(string url, SocketUserMessage msg, SocketMessage arg)
+        public static async Task<List<string>> CheckImageUrl(string url, SocketUserMessage msg, SocketMessage arg, ITextChannel reportChan)
         {
             if (Utils.IsImage(url.Split('.').Last()))
             {
@@ -72,14 +72,21 @@ namespace Konari
                         flags.Add("Racy(" + response.Racy.ToString() + ")");
                     if (response.Violence > Likelihood.Possible)
                         flags.Add("Violence(" + response.Violence.ToString() + ")");
-                    if (response.Spoof > Likelihood.Possible)
-                        flags.Add("Spoof(" + response.Spoof.ToString() + ")");
                     string fileName = "SPOILER_" + GenerateFileName() + "." + url.Split('.').Last();
                     using (HttpClient hc = new HttpClient())
                         File.WriteAllBytes(fileName, await hc.GetByteArrayAsync(url));
-                    await msg.Channel.SendMessageAsync(arg.Author.Mention + " Your image was deleted because it trigger the following flags: " + string.Join(", ", flags));
-                    await msg.Channel.SendFileAsync(fileName);
-                    await msg.DeleteAsync();
+                    string text = "The message of " + arg.Author.ToString() + " was deleted because it trigger the following flags: " + string.Join(", ", flags);
+                    if (reportChan == null)
+                    {
+                        await msg.Channel.SendMessageAsync(text);
+                        await msg.Channel.SendFileAsync(fileName);
+                        await msg.DeleteAsync();
+                    }
+                    else
+                    {
+                        await reportChan.SendMessageAsync(text);
+                        await reportChan.SendFileAsync(fileName);
+                    }
                     File.Delete(fileName);
                     return (flags.Select(x => x.Split('(')[0]).ToList());
                 }
@@ -103,7 +110,7 @@ namespace Konari
         {
             "en", "fr", "es", "de"
         }; // Languages supported by Perspective API. Others message are translated to english
-        public static async Task<List<string>> CheckText(SocketUserMessage msg, SocketMessage arg)
+        public static async Task<List<string>> CheckText(SocketUserMessage msg, SocketMessage arg, ITextChannel reportChan)
         {
             if (msg.Content.Length == 0)
                 return (null);
@@ -134,9 +141,15 @@ namespace Konari
                 }
                 if (flags.Count > 0)
                 {
-                    await msg.DeleteAsync();
-                    await arg.Channel.SendMessageAsync(arg.Author.Mention + " Your message was deleted because it trigger the following flags: " + string.Join(", ", flags) + Environment.NewLine + Environment.NewLine +
-                        "Original message: ||" + msg.Content.Replace("|", "\\|") + "||");
+                    string text = "The message of " + arg.Author.ToString() + " was deleted because it trigger the following flags: " + string.Join(", ", flags) + Environment.NewLine + Environment.NewLine +
+                            "Original message: ||" + msg.Content.Replace("|", "\\|") + "||";
+                    if (reportChan == null)
+                    {
+                        await msg.DeleteAsync();
+                        await arg.Channel.SendMessageAsync(text);
+                    }
+                    else
+                        await reportChan.SendMessageAsync(text);
                 }
                 return (flags.Select(x => x.Split('(')[0]).ToList());
             }
