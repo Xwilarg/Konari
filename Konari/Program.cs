@@ -31,6 +31,9 @@ namespace Konari
         public string requestUrlImage { private set; get; }
         public string requestToken { private set; get; }
 
+        private readonly string websiteName;
+        private readonly string websiteToken;
+
         private Db db;
 
         private Program()
@@ -50,6 +53,10 @@ namespace Konari
             rand = new Random();
             db = new Db();
 
+            string[] websiteInfos = File.ReadAllLines("Keys/website.txt");
+            websiteName = websiteInfos[0];
+            websiteToken = websiteInfos[1];
+
             Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "Keys/imageAPI.json");
             imageClient = ImageAnnotatorClient.Create();
 
@@ -63,6 +70,8 @@ namespace Konari
             client.MessageReceived += HandleCommandAsync;
             client.GuildAvailable += GuildJoin;
             client.JoinedGuild += GuildJoin;
+
+            await commands.AddModuleAsync<CommunicationModule>();
 
             await client.LoginAsync(TokenType.Bot, File.ReadAllText("Keys/token.txt"));
             StartTime = DateTime.Now;
@@ -84,13 +93,13 @@ namespace Konari
             if (msg.HasMentionPrefix(client.CurrentUser, ref pos) || msg.HasStringPrefix("k.", ref pos))
             {
                 SocketCommandContext context = new SocketCommandContext(client, msg);
-                await commands.ExecuteAsync(context, pos);
+                if ((await commands.ExecuteAsync(context, pos)).IsSuccess)
+                    await Utils.WebsiteUpdate("Konari", websiteName, websiteToken, "nbMsgs", "1");
             }
 #pragma warning disable 4014
             Task.Run(async () =>
             {
                 await Analyze.SendToServerAsync(await Analyze.CheckText(msg, arg), requestUrlText, arg.Author.Id.ToString());
-
             });
             Task.Run(async () =>
             {
