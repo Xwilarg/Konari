@@ -30,7 +30,7 @@ namespace Konari
                 }
                 catch (HttpRequestException http)
                 {
-                    await Utils.Log(new LogMessage(LogSeverity.Error, http.Source, http.Message, http));
+                    Console.WriteLine("Error while sending data to server: " + http.Message);
                 }
                 return (val != "SAFE");
             }

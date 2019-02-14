@@ -34,7 +34,7 @@ namespace Konari
         private readonly string websiteName;
         private readonly string websiteToken;
 
-        private Db db;
+        public Db db { private set; get; }
 
         private Program()
         {
@@ -97,23 +97,43 @@ namespace Konari
                     await Utils.WebsiteUpdate("Konari", websiteName, websiteToken, "nbMsgs", "1");
             }
 #pragma warning disable 4014
-            Task.Run(async () =>
+            ITextChannel textChan = arg.Channel as ITextChannel;
+            if (textChan == null)
+                return;
+            ulong guildId = textChan.GuildId;
+            string textVal = db.GetText(guildId);
+            string imageVal = db.GetImage(guildId);
+            string serverVal = db.GetServer(guildId);
+            if (textVal != "O")
             {
-                await Analyze.SendToServerAsync(await Analyze.CheckText(msg, arg), requestUrlText, arg.Author.Id.ToString());
-            });
-            Task.Run(async () =>
-            {
-                await Analyze.SendToServerAsync(await Analyze.CheckImage(msg, arg), requestUrlImage, arg.Author.Id.ToString());
-            });
-            Task.Run(async () =>
-            {
-                foreach (Match m in Regex.Matches(msg.Content, "https?:\\/\\/[^ ]+"))
+                Task.Run(async () =>
                 {
-                    if (Utils.IsLinkValid(m.Value))
-                        if (await Analyze.SendToServerAsync(await Analyze.CheckImageUrl(m.Value, msg, arg), requestUrlImage, arg.Author.Id.ToString()))
-                            break;
-                }
-            });
+                    var tmp = await Analyze.CheckText(msg, arg);
+                    if (serverVal != "O")
+                        await Analyze.SendToServerAsync(tmp, requestUrlText, arg.Author.Id.ToString());
+                });
+            }
+            if (imageVal != "O")
+            {
+                Task.Run(async () =>
+                {
+                    var tmp = await Analyze.CheckImage(msg, arg);
+                    if (serverVal != "O")
+                        await Analyze.SendToServerAsync(tmp, requestUrlImage, arg.Author.Id.ToString());
+                });
+                Task.Run(async () =>
+                {
+                    foreach (Match m in Regex.Matches(msg.Content, "https?:\\/\\/[^ ]+"))
+                    {
+                        if (Utils.IsLinkValid(m.Value))
+                        {
+                            var tmp = await Analyze.CheckImageUrl(m.Value, msg, arg);
+                            if (serverVal != "O" && await Analyze.SendToServerAsync(tmp, requestUrlImage, arg.Author.Id.ToString()))
+                                break;
+                        }
+                    }
+                });
+            }
 #pragma warning restore 4014
         }
     }
