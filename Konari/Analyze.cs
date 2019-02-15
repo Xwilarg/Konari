@@ -99,7 +99,7 @@ namespace Konari
         private static readonly Tuple<string, float>[] categories = new Tuple<string, float>[] {
             new Tuple<string, float>("TOXICITY", .80f),
             new Tuple<string, float>("SEVERE_TOXICITY", .60f),
-            new Tuple<string, float>("IDENTITY_ATTACK", .40f),
+            new Tuple<string, float>("IDENTITY_ATTACK", .60f),
             new Tuple<string, float>("INSULT", .60f),
             new Tuple<string, float>("PROFANITY", .80f),
             new Tuple<string, float>("THREAT", .60f),

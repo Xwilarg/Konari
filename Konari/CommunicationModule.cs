@@ -28,9 +28,15 @@ namespace Konari
         [Command("Enable")]
         private async Task Enable(params string[] args)
         {
-            if (Context.Guild.OwnerId != Context.User.Id)
+            IGuildUser guildUser = Context.User as IGuildUser;
+            if (guildUser == null)
             {
-                await ReplyAsync("Only " + (await Context.Guild.GetOwnerAsync()).ToString() + " can do this command.");
+                await ReplyAsync("This command can't be done in private message.");
+                return;
+            }
+            if (!guildUser.GuildPermissions.Administrator)
+            {
+                await ReplyAsync("Only someone with Administrator permission can do this command.");
                 return;
             }
             string elem = args[0];
@@ -94,9 +100,15 @@ namespace Konari
         [Command("Disable")]
         private async Task Disable(params string[] args)
         {
-            if (Context.Guild.OwnerId != Context.User.Id)
+            IGuildUser guildUser = Context.User as IGuildUser;
+            if (guildUser == null)
             {
-                await ReplyAsync("Only " + (await Context.Guild.GetOwnerAsync()).ToString() + " can do this command.");
+                await ReplyAsync("This command can't be done in private message.");
+                return;
+            }
+            if (!guildUser.GuildPermissions.Administrator)
+            {
+                await ReplyAsync("Only someone with Administrator permission can do this command.");
                 return;
             }
             string elem = string.Join(" ", args);
