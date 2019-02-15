@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using RethinkDb.Driver;
+﻿using RethinkDb.Driver;
 using RethinkDb.Driver.Net;
 using System.Collections.Generic;
 using System.Linq;
@@ -58,6 +57,9 @@ namespace Konari
         public string GetNsfw(ulong guildId)
             => availability[guildId][4];
 
+        public string GetTranslation(ulong guildId)
+            => availability[guildId][5];
+
         private async Task UpdateAvailability(ulong guildId)
         {
             await R.Db(dbName).Table("Guilds").Update(R.HashMap("id", guildId.ToString())
@@ -98,13 +100,18 @@ namespace Konari
             await SetElement(guildId, content, 4);
         }
 
+        public async Task SetTranslation(ulong guildId, string content)
+        {
+            await SetElement(guildId, content, 5);
+        }
+
         private RethinkDB R;
         private Connection conn;
         private string dbName;
         // Text settings, image settings, links settings, api settings
-        // Text/Image/Links: O (capital o) disable, X delete message, [id] chanel to report, check NSFW chans
+        // Text/Image/Links: O (capital o) disable, X delete message, [id] chanel to report, check NSFW chans, use translation instead of native language
         // API: O disabled, X enabled
-        private const string defaultAvailability = "O|O|O|O|O";
+        private const string defaultAvailability = "O|O|O|O|O|O";
         private Dictionary<ulong, string[]> availability;
     }
 }

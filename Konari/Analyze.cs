@@ -116,10 +116,10 @@ namespace Konari
                 return (null);
             var detection = await Program.P.translationClient.DetectLanguageAsync(msg.Content);
             string finalMsg = msg.Content;
-            if (!allowedLanguage.Contains(detection.Language))
-            {
+            bool useTranslationDb = Program.P.db.GetTranslation(((ITextChannel)msg.Channel).GuildId) == "O";
+            bool finalUseTranslation = useTranslationDb || (!allowedLanguage.Contains(detection.Language) && !useTranslationDb);
+            if (finalUseTranslation)
                 finalMsg = (await Program.P.translationClient.TranslateTextAsync(msg.Content, "en")).TranslatedText;
-            }
             using (HttpClient hc = new HttpClient())
             {
                 HttpResponseMessage post = await hc.PostAsync("https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=" + Program.P.perspectiveApi, new StringContent(
