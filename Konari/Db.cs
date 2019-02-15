@@ -2,6 +2,7 @@
 using RethinkDb.Driver;
 using RethinkDb.Driver.Net;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Konari
@@ -33,7 +34,10 @@ namespace Konari
                     .With("Availability", defaultAvailability)
                     ).RunAsync(conn);
             }
-            availability.Add(guildId, ((string)(await R.Db(dbName).Table("Guilds").Get(guildId.ToString()).RunAsync(conn)).Availability).Split('|'));
+            List<string> curr = ((string)(await R.Db(dbName).Table("Guilds").Get(guildId.ToString()).RunAsync(conn)).Availability).Split('|').ToList();
+            for (int i = curr.Count; i < defaultAvailability.Split('|').Length; i++)
+                curr.Add("O");
+            availability.Add(guildId, curr.ToArray());
         }
 
         public string[] GetAvailability(ulong guildId)
@@ -50,6 +54,9 @@ namespace Konari
 
         public string GetServer(ulong guildId)
             => availability[guildId][3];
+
+        public string GetNsfw(ulong guildId)
+            => availability[guildId][4];
 
         private async Task UpdateAvailability(ulong guildId)
         {
@@ -86,13 +93,18 @@ namespace Konari
             await SetElement(guildId, content, 3);
         }
 
+        public async Task SetNsfw(ulong guildId, string content)
+        {
+            await SetElement(guildId, content, 4);
+        }
+
         private RethinkDB R;
         private Connection conn;
         private string dbName;
         // Text settings, image settings, links settings, api settings
-        // Text/Image/Links: O (capital o) disable, X delete message, [id] chanel to report
+        // Text/Image/Links: O (capital o) disable, X delete message, [id] chanel to report, check NSFW chans
         // API: O disabled, X enabled
-        private const string defaultAvailability = "O|O|O|O";
+        private const string defaultAvailability = "O|O|O|O|O";
         private Dictionary<ulong, string[]> availability;
     }
 }

@@ -22,6 +22,7 @@ namespace Konari
             embed.AddField("Image settings", await GetServiceStatus(status[1], Context.Guild));
             embed.AddField("Link settings", await GetServiceStatus(status[2], Context.Guild));
             embed.AddField("Send datas", ((status[3] == "O") ? ("Disabled") : ("Enabled")));
+            embed.AddField("Check NSFW channels", ((status[4] == "O") ? ("Disabled") : ("Enabled")));
             await ReplyAsync("", false, embed.Build());
         }
 
@@ -52,9 +53,22 @@ namespace Konari
                 await ReplyAsync("Sending data to server was enabled.");
                 return;
             }
+            if (elem == "nsfw")
+            {
+                await Program.P.db.SetNsfw(Context.Guild.Id, "X");
+                await ReplyAsync("Checking NSFW channel was enabled.");
+                return;
+            }
             ITextChannel chan;
             if (action == "delete")
+            {
+                if (!((IGuildUser)(await Context.Channel.GetUserAsync(Program.P.client.CurrentUser.Id))).GuildPermissions.ManageMessages)
+                {
+                    await ReplyAsync("I need to have the ability to manage message for this mode.");
+                    return;
+                }
                 chan = null;
+            }
             else
             {
                 chan = await Utils.GetTextChannel(action, Context.Guild);
@@ -87,7 +101,8 @@ namespace Konari
             }
             else
                 await ReplyAsync("Argument must be 'text', 'image', 'link' followed by 'delete' to delete message or by a channel to report them." + Environment.NewLine
-                    + "Or 'data' followed by nothing to send datas to the server.");
+                    + "Or 'data' followed by nothing to send datas to the server." + Environment.NewLine
+                    + "Or 'nsfw' followed by nothing to enable check in NSFW channels.");
         }
 
         private string GetEnableString(ITextChannel chan)
@@ -132,8 +147,13 @@ namespace Konari
                 await Program.P.db.SetServer(Context.Guild.Id, "O");
                 await ReplyAsync("Sending data to server was disabled.");
             }
+            else if (elem == "nsfw")
+            {
+                await Program.P.db.SetNsfw(Context.Guild.Id, "O");
+                await ReplyAsync("Checking NSFW channel was disabled.");
+            }
             else
-                await ReplyAsync("Argument must be 'text', 'image', 'link' or 'data'.");
+                await ReplyAsync("Argument must be 'text', 'image', 'link', 'data' or 'nsfw'.");
         }
 
         private async Task<string> GetServiceStatus(string current, IGuild guild)

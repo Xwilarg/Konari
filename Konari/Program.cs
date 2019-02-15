@@ -105,7 +105,7 @@ namespace Konari
             }
 #pragma warning disable 4014
             ITextChannel textChan = arg.Channel as ITextChannel;
-            if (textChan == null)
+            if (textChan == null || (textChan.IsNsfw && db.GetNsfw(textChan.GuildId) == "O"))
                 return;
             ulong guildId = textChan.GuildId;
             string textVal = db.GetText(guildId);
