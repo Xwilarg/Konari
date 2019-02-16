@@ -61,8 +61,7 @@ namespace Konari
                 List<string> flags = new List<string>();
                 SafeSearchAnnotation response = await Program.P.imageClient.DetectSafeSearchAsync(image);
                 if (response.Adult > Likelihood.Possible || response.Medical > Likelihood.Possible
-                    || response.Racy > Likelihood.Possible || response.Violence > Likelihood.Possible
-                    || response.Spoof > Likelihood.Possible)
+                    || response.Racy > Likelihood.Possible || response.Violence > Likelihood.Possible)
                 {
                     if (response.Adult > Likelihood.Possible)
                         flags.Add("Adult(" + response.Adult.ToString() + ")");
