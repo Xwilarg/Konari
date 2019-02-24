@@ -74,7 +74,8 @@ namespace Konari
                     string fileName = "SPOILER_" + GenerateFileName() + "." + url.Split('.').Last();
                     using (HttpClient hc = new HttpClient())
                         File.WriteAllBytes(fileName, await hc.GetByteArrayAsync(url));
-                    string text = "The message of " + arg.Author.ToString() + " was deleted because it trigger the following flags: " + string.Join(", ", flags);
+                    string word = (reportChan == null) ? "deleted" : "reported";
+                    string text = "The message of " + arg.Author.ToString() + " was " + word + " because it trigger the following flags: " + string.Join(", ", flags);
                     if (reportChan == null)
                     {
                         await msg.Channel.SendMessageAsync(text);
@@ -140,7 +141,8 @@ namespace Konari
                 }
                 if (flags.Count > 0)
                 {
-                    string text = "The message of " + arg.Author.ToString() + " was deleted because it trigger the following flags: " + string.Join(", ", flags) + Environment.NewLine + Environment.NewLine +
+                    string word = (reportChan == null) ? "deleted" : "reported";
+                    string text = "The message of " + arg.Author.ToString() + " was " + word + " because it trigger the following flags: " + string.Join(", ", flags) + Environment.NewLine + Environment.NewLine +
                             "Original message: ||" + msg.Content.Replace("|", "\\|") + "||";
                     if (reportChan == null)
                     {
