@@ -8,3 +8,5 @@ It must contains the following:
  - perspectiveAPI.json: JSON given by Google Perspective API
  - website.txt (optionnal): website URL and website token (separated by a new line), send report about bot usage
  - url.txt (optionnal): website URL for text report, URL for image report, token (separated by a new line), send report about analysed text/image
+
+![Preview](Preview.png)

@@ -49,13 +49,13 @@ namespace Konari
             => availability[guildId][1];
 
         public string GetServer(ulong guildId)
-            => availability[guildId][3];
+            => availability[guildId][2];
 
         public string GetNsfw(ulong guildId)
-            => availability[guildId][4];
+            => availability[guildId][3];
 
         public string GetTranslation(ulong guildId)
-            => availability[guildId][5];
+            => availability[guildId][4];
 
         private async Task UpdateAvailability(ulong guildId)
         {
@@ -84,17 +84,17 @@ namespace Konari
 
         public async Task SetServer(ulong guildId, string content)
         {
-            await SetElement(guildId, content, 3);
+            await SetElement(guildId, content, 2);
         }
 
         public async Task SetNsfw(ulong guildId, string content)
         {
-            await SetElement(guildId, content, 4);
+            await SetElement(guildId, content, 3);
         }
 
         public async Task SetTranslation(ulong guildId, string content)
         {
-            await SetElement(guildId, content, 5);
+            await SetElement(guildId, content, 4);
         }
 
         private RethinkDB R;
