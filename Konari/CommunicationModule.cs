@@ -15,7 +15,15 @@ namespace Konari
             await ReplyAsync("", false, new EmbedBuilder
             {
                 Description =
-                    "**Status**: Display current bot status" + Environment.NewLine
+                    "**Status**: Display current bot status" + Environment.NewLine +
+                    "**Enable/Disable**: You can enable the following things:" + Environment.NewLine +
+                    " - data: Send message report to a predefined server" + Environment.NewLine +
+                    " - nsfw: Analyse messages in NSFW channels" + Environment.NewLine +
+                    " - native: Use native language for analysis when available. If not enabled, will use Google Translate to english" + Environment.NewLine +
+                    " - text: Analyse text messages" + Environment.NewLine +
+                    " - image: Analyse images" + Environment.NewLine +
+                    "Also when using the enable command, you must either say 'delete' for a bad message to be deleted, or give a channel id to automatically create a report inside",
+                Color = Color.Blue
             }.Build());
         }
 
