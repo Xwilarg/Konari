@@ -9,8 +9,18 @@ namespace Konari
 {
     public class CommunicationModule : ModuleBase
     {
+        [Command("Help")]
+        private async Task Help(params string[] _)
+        {
+            await ReplyAsync("", false, new EmbedBuilder
+            {
+                Description =
+                    "**Status**: Display current bot status" + Environment.NewLine
+            }.Build());
+        }
+
         [Command("Status")]
-        private async Task Status(params string[] args)
+        private async Task Status(params string[] _)
         {
             string[] status = Program.P.db.GetAvailability(Context.Guild.Id);
             EmbedBuilder embed = new EmbedBuilder()
@@ -20,10 +30,9 @@ namespace Konari
             };
             embed.AddField("Text settings", await GetServiceStatus(status[0], Context.Guild));
             embed.AddField("Image settings", await GetServiceStatus(status[1], Context.Guild));
-            embed.AddField("Link settings", await GetServiceStatus(status[2], Context.Guild));
-            embed.AddField("Send datas", ((status[3] == "O") ? ("Disabled") : ("Enabled")));
-            embed.AddField("Check NSFW channels", ((status[4] == "O") ? ("Disabled") : ("Enabled")));
-            embed.AddField("Use native language when available (experimental)", ((status[5] == "O") ? ("Disabled") : ("Enabled")));
+            embed.AddField("Send datas", ((status[2] == "O") ? ("Disabled") : ("Enabled")));
+            embed.AddField("Check NSFW channels", ((status[3] == "O") ? ("Disabled") : ("Enabled")));
+            embed.AddField("Use native language for analysis when available (experimental)", ((status[4] == "O") ? ("Disabled") : ("Enabled")));
             await ReplyAsync("", false, embed.Build());
         }
 
@@ -42,11 +51,6 @@ namespace Konari
                 return;
             }
             string elem = args[0];
-            if (elem == "link")
-            {
-                await ReplyAsync("Link analysis isn't available yet.");
-                return;
-            }
             string action = string.Join(" ", args.Skip(1));
             if (elem == "data")
             {
@@ -66,9 +70,9 @@ namespace Konari
                 await ReplyAsync("Using native language when available was enabled.");
                 return;
             }
-            if (elem != "text" && elem != "image" && elem != "link")
+            if (elem != "text" && elem != "image")
             {
-                await ReplyAsync("Argument must be 'text', 'image', 'link' followed by 'delete' to delete message or by a channel to report them." + Environment.NewLine
+                await ReplyAsync("Argument must be 'text' or 'image' followed by 'delete' to delete message or by a channel to report them." + Environment.NewLine
                     + "Or 'data' followed by nothing to send datas to the server." + Environment.NewLine
                     + "Or 'nsfw' followed by nothing to enable check in NSFW channels." + Environment.NewLine
                     + "Or 'native' followed by nothing to enable use of native language over translation when available.");
@@ -109,11 +113,6 @@ namespace Konari
                 await Program.P.db.SetImage(Context.Guild.Id, str);
                 await ReplyAsync("Image analysis " + replyStr);
             }
-            else if (elem == "link")
-            {
-                await Program.P.db.SetLink(Context.Guild.Id, str);
-                await ReplyAsync("Link analysis " + replyStr);
-            }
         }
 
         private string GetEnableString(ITextChannel chan)
@@ -148,11 +147,6 @@ namespace Konari
                 await Program.P.db.SetImage(Context.Guild.Id, "O");
                 await ReplyAsync("Image analysis was disabled.");
             }
-            else if (elem == "link")
-            {
-                await Program.P.db.SetLink(Context.Guild.Id, "O");
-                await ReplyAsync("Link analysis was disabled.");
-            }
             else if (elem == "data")
             {
                 await Program.P.db.SetServer(Context.Guild.Id, "O");
@@ -169,7 +163,7 @@ namespace Konari
                 await ReplyAsync("Using native language when available was disabled.");
             }
             else
-                await ReplyAsync("Argument must be 'text', 'image', 'link', 'data', 'nsfw' or 'native'.");
+                await ReplyAsync("Argument must be 'text', 'image', 'data', 'nsfw' or 'native'.");
         }
 
         private async Task<string> GetServiceStatus(string current, IGuild guild)

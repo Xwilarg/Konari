@@ -48,9 +48,6 @@ namespace Konari
         public string GetImage(ulong guildId)
             => availability[guildId][1];
 
-        public string GetLink(ulong guildId)
-            => availability[guildId][2];
-
         public string GetServer(ulong guildId)
             => availability[guildId][3];
 
@@ -85,11 +82,6 @@ namespace Konari
             await SetElement(guildId, content, 1);
         }
 
-        public async Task SetLink(ulong guildId, string content)
-        {
-            await SetElement(guildId, content, 2);
-        }
-
         public async Task SetServer(ulong guildId, string content)
         {
             await SetElement(guildId, content, 3);
@@ -108,10 +100,10 @@ namespace Konari
         private RethinkDB R;
         private Connection conn;
         private string dbName;
-        // Text settings, image settings, links settings, api settings
-        // Text/Image/Links: O (capital o) disable, X delete message, [id] chanel to report, check NSFW chans, use translation instead of native language
+        // Text settings, image settings settings, api settings
+        // Text/Image: O (capital o) disable, X delete message, [id] chanel to report, check NSFW chans, use translation instead of native language
         // API: O disabled, X enabled
-        private const string defaultAvailability = "O|O|O|O|O|O";
+        private const string defaultAvailability = "O|O|O|O|O";
         private Dictionary<ulong, string[]> availability;
     }
 }
